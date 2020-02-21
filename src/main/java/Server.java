@@ -1,3 +1,8 @@
+import javafx.collections.FXCollections;
+import javafx.scene.Scene;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -23,8 +28,34 @@ public class Server {
         new Server();
     }
 
+
+    void loadFile() {
+        try {
+            File file = new File("Data.save");
+            FileInputStream fis = new FileInputStream(file);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Info = (CopyOnWriteArrayList<Task>) ois.readObject();
+            ois.close();
+            fis.close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    void saveFile() {
+        try {
+            File file = new File("Data.save");
+            FileOutputStream fos = new FileOutputStream(file);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(Info);
+            oos.close();
+            fos.close();
+        } catch (Exception ignored) {
+        }
+    }
+
     public Server() {
         try {
+            loadFile();
             // Create a server socket
             ServerSocket serverSocket = new ServerSocket(8000);
             System.out.println("Server started ");
@@ -66,6 +97,7 @@ public class Server {
             try {
                 semaphore.acquire(); // Acquire a permit
                 while (socket.isConnected()) {
+                    saveFile();
                     // Create an input stream from the socket
                     dataFromClient = new DataInputStream(socket.getInputStream());
                     String command = dataFromClient.readUTF();
@@ -116,7 +148,7 @@ public class Server {
                     }
                 }
             } catch (SocketException ex) {
-                System.out.println("Client " + socket.toString() +" disconnected");
+                System.out.println("Client " + socket.toString() + " disconnected");
             } catch (ClassNotFoundException | IOException | InterruptedException ex) {
                 ex.printStackTrace();
             } finally {
