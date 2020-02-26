@@ -6,6 +6,10 @@ public class SubTask extends Mission implements Serializable {
         super(header, description, done, archived);
     }
 
+    public SubTask(SubTask sub) {
+        super(sub.getHeader(), sub.getDescription(), sub.getDone(), sub.getArchived());
+    }
+
     @Override
     public boolean equals(Object obj){
         if (this == obj)

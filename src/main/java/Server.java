@@ -19,7 +19,7 @@ public class Server {
     private CopyOnWriteArrayList<Task> Info = new CopyOnWriteArrayList<>();
 
     // Limit the concurrent connections to two clients
-    private static final int CONCURRENT_CONNECTIONS = 2;
+    private static final int CONCURRENT_CONNECTIONS = 4;
 
     // Create a semaphore
     private static Semaphore semaphore = new Semaphore(CONCURRENT_CONNECTIONS);
@@ -59,7 +59,8 @@ public class Server {
             // Create a server socket
             ServerSocket serverSocket = new ServerSocket(8000);
             System.out.println("Server started ");
-            ExecutorService exec = Executors.newFixedThreadPool(2);
+            ExecutorService exec = Executors.newFixedThreadPool(4);
+            exec.execute(new ProgramStopper(exec));
             while (true) {
                 // Listen for a new connection request
                 Socket socket = serverSocket.accept();
@@ -67,7 +68,7 @@ public class Server {
                 exec.execute(new HandleAClient(socket));
             }
         } catch (IOException ex) {
-            ex.printStackTrace();
+            System.out.println("Catched ex in body of Server():\n" + Arrays.toString(ex.getStackTrace()));
         } finally {
             try {
                 objectFromClient.close();
@@ -75,7 +76,35 @@ public class Server {
                 dataFromClient.close();
                 dataToClient.close();
             } catch (Exception ex) {
-                ex.printStackTrace();
+                System.out.println("Catched ex in final of Server():\n" + Arrays.toString(ex.getStackTrace()));
+            }
+        }
+    }
+
+    class ProgramStopper implements Runnable {
+        ExecutorService exec;
+
+        public ProgramStopper(ExecutorService exec) {
+            this.exec = exec;
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                String in = new Scanner(System.in).next();
+                if (in.equalsIgnoreCase("End")) {
+                    saveFile();
+                    try {
+                        exec.shutdown();
+                        objectFromClient.close();
+                        objectToClient.close();
+                        dataFromClient.close();
+                        dataToClient.close();
+                    } catch (Exception ex) {
+                        System.out.println("Empty end");
+                    }
+                    System.exit(100);
+                }
             }
         }
     }
@@ -89,7 +118,7 @@ public class Server {
          */
         public HandleAClient(Socket socket) {
             this.socket = socket;
-            System.out.println("connected: " + socket.toString());
+            System.out.println("Connected: " + socket.toString());
         }
 
         /* Run a thread */
@@ -115,7 +144,7 @@ public class Server {
                             Info.add(task);
                             task.setId(Info.indexOf(task));
                             task.header += task.id;
-                            System.out.println("Number of Tasks: " + Info.size());
+                            System.out.println("New task added, number of Tasks: " + Info.size());
                             objectToClient = new ObjectOutputStream(socket.getOutputStream());
                             objectToClient.writeObject(task);
                             break;
@@ -131,14 +160,14 @@ public class Server {
                         case "REMOVE": { // Remove task from list
                             dataFromClient = new DataInputStream(socket.getInputStream());
                             int id = dataFromClient.readInt();
-                            Task t = Info.get(id);
                             boolean ans = false;
-                            if (id > 0) {
+                            if (id >= 0) {
                                 try {
                                     Info.get(id).setArchived(true);
                                     ans = true;
+                                    System.out.println("Task archived: " + id);
                                 } catch (Exception ex) {
-                                    ans = false;
+                                    System.out.println("Client " + socket.toString() + "tried to remove nonexistent task");
                                 }
                             }
                             dataToClient = new DataOutputStream(socket.getOutputStream());
@@ -150,7 +179,7 @@ public class Server {
             } catch (SocketException ex) {
                 System.out.println("Client " + socket.toString() + " disconnected");
             } catch (ClassNotFoundException | IOException | InterruptedException ex) {
-                ex.printStackTrace();
+                System.out.println("Catched ex in run() of client:\n" + Arrays.toString(ex.getStackTrace()));
             } finally {
                 semaphore.release(); // Release a permit
             }

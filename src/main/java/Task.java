@@ -39,9 +39,13 @@ public class Task extends Mission implements Serializable {
 
     public Task(Task task) {
         super(task.getHeader(), task.getDescription(), task.getDone(), task.getArchived());
-        this.subtasks = Optional.ofNullable(task.subtasks).orElse(new ArrayList<>());  // ФП
+        this.subtasks = new ArrayList<>();
+        task.subtasks = Optional.ofNullable(task.subtasks).orElse(new ArrayList<>());
+        task.subtasks.forEach(s -> {
+            this.subtasks.add(new SubTask(s));
+        });
         this.date = task.getDate().getValue();
-        this.tags = Optional.ofNullable(task.tags).orElse(new ArrayList<>());  // ФП
+        this.tags = new ArrayList<>(Optional.ofNullable(task.tags).orElse(new ArrayList<>()));  // ФП
         this.tags.forEach(s -> this.listOfTags += s + ","); //  ФП
         this.haveDate = task.getHaveDate();
         this.id = task.id;
